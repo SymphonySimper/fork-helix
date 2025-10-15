@@ -1,0 +1,41 @@
+name: Weekly Release
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Runs at 00:00 UTC on every Saturday
+    - cron: "0 0 * * 6"
+
+permissions:
+  contents: write
+
+jobs:
+  date:
+    runs-on: ubuntu-latest
+    outputs:
+      run_date: ${{ steps.get_run_date.outputs.run_date }}
+    steps:
+      - name: Get UTC run date
+        id: get_run_date
+        run: |
+          echo "run_date=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+  rebase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # entire history
+
+      - name: Add upstream and rebase
+        run: |
+          git remote add upstream https://github.com:/helix-editor/helix.git
+          git pull --rebase upstream master
+          git push --force-with-lease
+
+  release:
+    needs: [date, rebase]
+    uses: ./.github/workflows/release.yml
+    with:
+      date: ${{ needs.date.outputs.run_date }}
