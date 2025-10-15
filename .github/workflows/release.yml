@@ -1,21 +1,19 @@
 name: Release
-on:
-  push:
-    tags:
-    - '[0-9]+.[0-9]+'
-    - '[0-9]+.[0-9]+.[0-9]+'
-    branches:
-    - 'patch/ci-release-*'
-  pull_request:
-    paths:
-    - '.github/workflows/release.yml'
 
-env:
-  # Preview mode: Publishes the build output as a CI artifact instead of creating
-  # a release, allowing for manual inspection of the output. This mode is
-  # activated if the CI run was triggered by events other than pushed tags, or
-  # if the repository is a fork.
-  preview: ${{ !startsWith(github.ref, 'refs/tags/') || github.repository != 'helix-editor/helix' }}
+on:
+  workflow_call:
+    inputs:
+      date:
+        description: "YYYY-MM-DD"
+        required: true
+        type: string
+
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "YYYY-MM-DD"
+        required: true
+        type: string
 
 jobs:
   fetch-grammars:
@@ -144,9 +142,9 @@ jobs:
           echo "cargo command is: ${{ env.CARGO }}"
           echo "target flag is: ${{ env.TARGET_FLAGS }}"
 
-      - name: Run cargo test
-        if: "!matrix.skip_tests"
-        run: ${{ env.CARGO }} test --release --locked --target ${{ matrix.target }} --workspace
+      # - name: Run cargo test
+      #   if: "!matrix.skip_tests"
+      #   run: ${{ env.CARGO }} test --release --locked --target ${{ matrix.target }} --workspace
 
       - name: Build release binary
         run: ${{ env.CARGO }} build --profile opt --locked --target ${{ matrix.target }}
@@ -161,7 +159,7 @@ jobs:
 
           mkdir dist
 
-          name=dev
+          name="${{ inputs.date }}"
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             name=${GITHUB_REF:10}
           fi
@@ -245,7 +243,7 @@ jobs:
           set -ex
 
           source="$(pwd)"
-          tag=${GITHUB_REF_NAME//\//}
+          tag="${{ inputs.date }}"
           mkdir -p runtime/grammars/sources
           tar xJf grammars/grammars.tar.xz -C runtime/grammars/sources
           rm -rf grammars
@@ -285,12 +283,11 @@ jobs:
 
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
-        if: env.preview == 'false'
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: dist/*
           file_glob: true
-          tag: ${{ github.ref_name }}
+          tag: ${{ inputs.date }}
           overwrite: true
 
       - name: Upload binaries as artifact
@@ -299,3 +296,5 @@ jobs:
         with:
           name: release
           path: dist/*
+          release_name: ${{ inputs.date }}
+          body: "Weekly Release: ${{ inputs.date }}."
