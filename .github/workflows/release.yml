@@ -1,14 +1,4 @@
 name: Release
-on:
-  push:
-    tags:
-    - '[0-9]+.[0-9]+'
-    - '[0-9]+.[0-9]+.[0-9]+'
-    branches:
-    - 'patch/ci-release-*'
-  pull_request:
-    paths:
-    - '.github/workflows/release.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,6 +13,21 @@ env:
   # activated if the CI run was triggered by events other than pushed tags, or
   # if the repository is a fork.
   preview: ${{ !startsWith(github.ref, 'refs/tags/') || github.repository != 'helix-editor/helix' }}
+
+on:
+  workflow_call:
+    inputs:
+      date:
+        description: "YYYY-MM-DD"
+        required: true
+        type: string
+
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "YYYY-MM-DD"
+        required: true
+        type: string
 
 jobs:
   fetch-grammars:
@@ -65,12 +70,12 @@ jobs:
         - build: x86_64-linux
           # WARN: When changing this to a newer version, make sure that the GLIBC isnt too new, as this can cause issues
           # with portablity on older systems that dont follow ubuntus more rapid release cadence.
-          os: ubuntu-22.04
+          os: ubuntu-24.04
           rust: stable
           target: x86_64-unknown-linux-gnu
         - build: aarch64-linux
           # Version should be kept in lockstep with the x86_64 version
-          os: ubuntu-22.04-arm
+          os: ubuntu-24.04-arm
           rust: stable
           target: aarch64-unknown-linux-gnu
         - build: x86_64-macos
@@ -132,7 +137,7 @@ jobs:
 
           mkdir dist
 
-          name=dev
+          name="${{ inputs.date }}"
           if [[ $GITHUB_REF == refs/tags/* ]]; then
             name=${GITHUB_REF:10}
           fi
@@ -225,7 +230,7 @@ jobs:
           set -ex
 
           source="$(pwd)"
-          tag=${GITHUB_REF_NAME//\//}
+          tag="${{ inputs.date }}"
           mkdir -p runtime/grammars/sources
           tar xJf grammars/grammars.tar.xz -C runtime/grammars/sources
           rm -rf grammars
@@ -272,12 +277,11 @@ jobs:
 
       - name: Upload binaries to release
         uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # 2.11.5
-        if: env.preview == 'false'
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: dist/*
           file_glob: true
-          tag: ${{ github.ref_name }}
+          tag: ${{ inputs.date }}
           overwrite: true
 
       - name: Upload binaries as artifact
