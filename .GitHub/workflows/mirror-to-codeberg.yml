@@ -1,0 +1,28 @@
+name: Mirror to Codeberg
+
+on:
+#Triger on all pushes to all branches 
+push:
+  branches: ["**"]
+# Also trigger on all tag pushes (which happen when you create a release)
+push:
+  tags: ["**"]
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code and Tags
+        uses: actions/checkout@v4
+        with:
+          # This ensures all history, branches, and tags are fetched
+          fetch-deps: 0
+
+      - name: Push Codeberg Mirror
+        # This action handles the secure push to Codeberg 
+        uses: cssnr/mirror-repository-action@v1
+        with:
+          host: 'https://codeberg.org'
+          username: 'batyrmuhadov'
+          repo: 'helix'
+          password: ${{ secrets.CODEBERG_TOKEN }}
