@@ -42,5 +42,9 @@ jobs:
   release:
     needs: [date, rebase]
     uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     with:
       date: ${{ needs.date.outputs.run_date }}
